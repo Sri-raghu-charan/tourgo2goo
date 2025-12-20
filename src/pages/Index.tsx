@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { UserStats } from "@/components/UserStats";
@@ -48,6 +49,42 @@ const nearbyLocations = [
     rating: 4.7,
     visitCount: 567,
   },
+  {
+    name: "Heritage Museum",
+    category: "historical" as const,
+    distance: "1.5 km",
+    points: 180,
+    image: "https://images.unsplash.com/photo-1564399580075-5dfe19c205f3?w=400&h=300&fit=crop",
+    rating: 4.5,
+    visitCount: 1023,
+  },
+  {
+    name: "Rainforest Trail",
+    category: "nature" as const,
+    distance: "4.2 km",
+    points: 175,
+    image: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&h=300&fit=crop",
+    rating: 4.7,
+    visitCount: 876,
+  },
+  {
+    name: "Street Food Market",
+    category: "food" as const,
+    distance: "1.1 km",
+    points: 120,
+    image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop",
+    rating: 4.4,
+    visitCount: 1567,
+  },
+  {
+    name: "Cliff Diving Point",
+    category: "adventure" as const,
+    distance: "6.8 km",
+    points: 300,
+    image: "https://images.unsplash.com/photo-1507034589631-9433cc6bc453?w=400&h=300&fit=crop",
+    rating: 4.9,
+    visitCount: 432,
+  },
 ];
 
 const leaderboardUsers = [
@@ -88,16 +125,24 @@ const rewards = [
   },
 ];
 
-const categories = [
-  { name: "All", icon: Compass, active: true },
-  { name: "Nature", icon: () => <span>🌿</span> },
-  { name: "Food", icon: () => <span>🍜</span> },
-  { name: "Culture", icon: () => <span>🏛️</span> },
-  { name: "Adventure", icon: () => <span>🏔️</span> },
-  { name: "Historical", icon: () => <span>🏰</span> },
+type CategoryType = "all" | "nature" | "food" | "culture" | "adventure" | "historical";
+
+const categories: { name: string; value: CategoryType; emoji: string }[] = [
+  { name: "All", value: "all", emoji: "🌍" },
+  { name: "Nature", value: "nature", emoji: "🌿" },
+  { name: "Food", value: "food", emoji: "🍜" },
+  { name: "Culture", value: "culture", emoji: "🎭" },
+  { name: "Adventure", value: "adventure", emoji: "🏔️" },
+  { name: "Historical", value: "historical", emoji: "🏛️" },
 ];
 
 const Index = () => {
+  const [activeCategory, setActiveCategory] = useState<CategoryType>("all");
+  
+  const filteredLocations = activeCategory === "all" 
+    ? nearbyLocations 
+    : nearbyLocations.filter(location => location.category === activeCategory);
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -195,15 +240,19 @@ const Index = () => {
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {categories.map((cat) => (
               <button
-                key={cat.name}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-display font-semibold text-sm whitespace-nowrap transition-all duration-300 ${
-                  cat.active
-                    ? "gradient-primary text-primary-foreground shadow-soft"
-                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
+                key={cat.value}
+                onClick={() => setActiveCategory(cat.value)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-display font-semibold text-sm whitespace-nowrap transition-all duration-300 ${
+                  activeCategory === cat.value
+                    ? "gradient-primary text-primary-foreground shadow-soft scale-105"
+                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 hover:scale-105"
                 }`}
               >
-                <cat.icon className="w-4 h-4" />
+                <span className="text-lg">{cat.emoji}</span>
                 {cat.name}
+                {activeCategory === cat.value && (
+                  <span className="ml-1 w-2 h-2 bg-primary-foreground rounded-full animate-pulse" />
+                )}
               </button>
             ))}
           </div>
@@ -219,9 +268,22 @@ const Index = () => {
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {nearbyLocations.map((location) => (
-              <LocationCard key={location.name} {...location} />
-            ))}
+            {filteredLocations.length > 0 ? (
+              filteredLocations.map((location, index) => (
+                <div 
+                  key={location.name} 
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <LocationCard {...location} />
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <span className="text-4xl mb-4 block">🔍</span>
+                <p className="text-muted-foreground font-display">No places found in this category</p>
+              </div>
+            )}
           </div>
         </section>
         
