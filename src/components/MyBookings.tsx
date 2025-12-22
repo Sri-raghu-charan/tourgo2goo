@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Bed, Clock, Coins, CreditCard, CheckCircle, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, Bed, Clock, Coins, CreditCard, CheckCircle, XCircle, Loader2, AlertCircle, Bell } from "lucide-react";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingWithDetails {
   id: string;
@@ -20,16 +21,18 @@ interface BookingWithDetails {
   room_name: string;
 }
 
-const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending: { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400", icon: <Clock className="w-3 h-3" /> },
-  confirmed: { color: "bg-green-500/20 text-green-700 dark:text-green-400", icon: <CheckCircle className="w-3 h-3" /> },
-  cancelled: { color: "bg-red-500/20 text-red-700 dark:text-red-400", icon: <XCircle className="w-3 h-3" /> },
-  completed: { color: "bg-blue-500/20 text-blue-700 dark:text-blue-400", icon: <CheckCircle className="w-3 h-3" /> },
+const statusConfig: Record<string, { color: string; icon: React.ReactNode; message: string }> = {
+  pending: { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400", icon: <Clock className="w-3 h-3" />, message: "Your booking is pending confirmation" },
+  confirmed: { color: "bg-green-500/20 text-green-700 dark:text-green-400", icon: <CheckCircle className="w-3 h-3" />, message: "Your booking has been confirmed! 🎉" },
+  cancelled: { color: "bg-red-500/20 text-red-700 dark:text-red-400", icon: <XCircle className="w-3 h-3" />, message: "Your booking has been cancelled" },
+  completed: { color: "bg-blue-500/20 text-blue-700 dark:text-blue-400", icon: <CheckCircle className="w-3 h-3" />, message: "Your stay is complete! Thank you!" },
 };
 
 export const MyBookings = ({ userId }: { userId: string }) => {
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const previousBookingsRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -92,7 +95,12 @@ export const MyBookings = ({ userId }: { userId: string }) => {
       }
     };
 
-    fetchBookings();
+    fetchBookings().then(() => {
+      // Store initial booking statuses
+      bookings.forEach(b => {
+        previousBookingsRef.current.set(b.id, b.status || 'pending');
+      });
+    });
 
     // Listen for realtime updates
     const channel = supabase
@@ -100,12 +108,43 @@ export const MyBookings = ({ userId }: { userId: string }) => {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          const newStatus = (payload.new as any).status;
+          const oldStatus = previousBookingsRef.current.get((payload.new as any).id);
+          
+          // Only show notification if status actually changed
+          if (newStatus && newStatus !== oldStatus) {
+            const config = statusConfig[newStatus];
+            if (config) {
+              toast({
+                title: `Booking ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}!`,
+                description: config.message,
+              });
+            }
+            previousBookingsRef.current.set((payload.new as any).id, newStatus);
+          }
+          
+          fetchBookings();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
           schema: 'public',
           table: 'bookings',
           filter: `user_id=eq.${userId}`
         },
         () => {
+          toast({
+            title: "Booking Created!",
+            description: "Your booking request has been submitted",
+          });
           fetchBookings();
         }
       )
@@ -138,6 +177,14 @@ export const MyBookings = ({ userId }: { userId: string }) => {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Your Bookings</h3>
+        <Badge variant="outline" className="gap-1">
+          <Bell className="w-3 h-3" />
+          Live updates enabled
+        </Badge>
+      </div>
+      
       {bookings.map((booking) => {
         const status = booking.status || 'pending';
         const config = statusConfig[status] || statusConfig.pending;
