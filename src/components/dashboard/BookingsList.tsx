@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Bed, IndianRupee, Coins, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Calendar, User, Bed, IndianRupee, Coins, CheckCircle, XCircle, Clock, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -17,8 +17,14 @@ interface Booking {
   status: string;
   special_requests: string | null;
   created_at: string;
-  rooms: { name: string } | null;
-  profiles: { full_name: string; phone: string | null } | null;
+  user_id: string;
+  room_id: string | null;
+}
+
+interface BookingWithDetails extends Booking {
+  room_name: string | null;
+  guest_name: string | null;
+  guest_phone: string | null;
 }
 
 interface BookingsListProps {
@@ -41,33 +47,91 @@ const statusIcons: Record<string, React.ReactNode> = {
 
 export function BookingsList({ hotelId }: BookingsListProps) {
   const { toast } = useToast();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [hotelId]);
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch bookings for this hotel
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          rooms (name),
-          profiles!bookings_user_id_fkey (full_name, phone)
-        `)
+        .select('*')
         .eq('hotel_id', hotelId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setBookings((data || []) as unknown as Booking[]);
+      if (bookingsError) throw bookingsError;
+
+      if (!bookingsData || bookingsData.length === 0) {
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique room IDs and user IDs
+      const roomIds = [...new Set(bookingsData.filter(b => b.room_id).map(b => b.room_id))];
+      const userIds = [...new Set(bookingsData.map(b => b.user_id))];
+
+      // Fetch rooms and profiles separately
+      const [roomsRes, profilesRes] = await Promise.all([
+        roomIds.length > 0 
+          ? supabase.from('rooms').select('id, name').in('id', roomIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from('profiles').select('user_id, full_name, phone').in('user_id', userIds)
+      ]);
+
+      const roomsMap = new Map((roomsRes.data || []).map(r => [r.id, r.name]));
+      const profilesMap = new Map((profilesRes.data || []).map(p => [p.user_id, { name: p.full_name, phone: p.phone }]));
+
+      // Combine data
+      const enrichedBookings: BookingWithDetails[] = bookingsData.map(booking => ({
+        ...booking,
+        room_name: booking.room_id ? roomsMap.get(booking.room_id) || null : null,
+        guest_name: profilesMap.get(booking.user_id)?.name || null,
+        guest_phone: profilesMap.get(booking.user_id)?.phone || null
+      }));
+
+      setBookings(enrichedBookings);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBookings();
+
+    // Subscribe to realtime updates for new bookings
+    const channel = supabase
+      .channel(`bookings-${hotelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `hotel_id=eq.${hotelId}`
+        },
+        (payload) => {
+          console.log('Booking update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "New Booking! 🎉",
+              description: "You have a new booking request",
+            });
+          }
+          
+          // Refetch all bookings to get updated data with relations
+          fetchBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hotelId]);
 
   const updateStatus = async (bookingId: string, status: string) => {
     try {
@@ -109,7 +173,13 @@ export function BookingsList({ hotelId }: BookingsListProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Recent Bookings</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Recent Bookings</h3>
+        <Badge variant="outline" className="gap-1">
+          <Bell className="w-3 h-3" />
+          Live updates enabled
+        </Badge>
+      </div>
       
       <div className="space-y-3">
         {bookings.map((booking) => (
@@ -119,16 +189,16 @@ export function BookingsList({ hotelId }: BookingsListProps) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-semibold">{booking.profiles?.full_name || 'Guest'}</span>
-                    {booking.profiles?.phone && (
-                      <span className="text-sm text-muted-foreground">({booking.profiles.phone})</span>
+                    <span className="font-semibold">{booking.guest_name || 'Guest'}</span>
+                    {booking.guest_phone && (
+                      <span className="text-sm text-muted-foreground">({booking.guest_phone})</span>
                     )}
                   </div>
                   
                   <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Bed className="w-4 h-4" />
-                      {booking.rooms?.name || 'Room'}
+                      {booking.room_name || 'Room'}
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Calendar className="w-4 h-4" />
