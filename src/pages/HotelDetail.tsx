@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { 
   ArrowLeft, 
   MapPin, 
@@ -372,34 +374,79 @@ export default function HotelDetail() {
                             Book Now
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-md">
+                        <DialogContent className="max-w-lg">
                           <DialogHeader>
                             <DialogTitle>Book {room.name}</DialogTitle>
                           </DialogHeader>
                           
                           <div className="space-y-4">
+                            {/* Date Selection with Popovers */}
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label>Check-in</Label>
-                                <Calendar
-                                  mode="single"
-                                  selected={checkIn}
-                                  onSelect={setCheckIn}
-                                  disabled={(date) => date < new Date()}
-                                  className="rounded-md border"
-                                />
+                                <Label>Check-in Date</Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !checkIn && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {checkIn ? format(checkIn, "PPP") : <span>Select date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={checkIn}
+                                      onSelect={setCheckIn}
+                                      disabled={(date) => date < new Date()}
+                                      initialFocus
+                                      className={cn("p-3 pointer-events-auto")}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </div>
+                              
                               <div className="space-y-2">
-                                <Label>Check-out</Label>
-                                <Calendar
-                                  mode="single"
-                                  selected={checkOut}
-                                  onSelect={setCheckOut}
-                                  disabled={(date) => !checkIn || date <= checkIn}
-                                  className="rounded-md border"
-                                />
+                                <Label>Check-out Date</Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !checkOut && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {checkOut ? format(checkOut, "PPP") : <span>Select date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={checkOut}
+                                      onSelect={setCheckOut}
+                                      disabled={(date) => !checkIn || date <= checkIn}
+                                      initialFocus
+                                      className={cn("p-3 pointer-events-auto")}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             </div>
+                            
+                            {/* Show selected dates summary */}
+                            {checkIn && checkOut && (
+                              <div className="flex items-center justify-center gap-2 p-3 bg-muted/50 rounded-lg text-sm">
+                                <CalendarIcon className="w-4 h-4 text-primary" />
+                                <span>{format(checkIn, "MMM dd")} → {format(checkOut, "MMM dd, yyyy")}</span>
+                                <Badge variant="secondary">{differenceInDays(checkOut, checkIn)} nights</Badge>
+                              </div>
+                            )}
                             
                             {/* Discount Selection */}
                             {discounts.filter(d => d.target === 'room').length > 0 && (
