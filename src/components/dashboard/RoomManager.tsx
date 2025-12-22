@@ -4,11 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Plus, Bed, IndianRupee, Edit, Trash2, Sparkles } from "lucide-react";
 
 interface Room {
@@ -19,6 +22,7 @@ interface Room {
   total_rooms: number;
   available_rooms: number;
   is_available: boolean;
+  images: string[];
 }
 
 interface RoomManagerProps {
@@ -28,6 +32,12 @@ interface RoomManagerProps {
 
 export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { uploadImage, uploading } = useImageUpload({ 
+    folder: 'rooms', 
+    userId: user?.id || '' 
+  });
+  
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -38,6 +48,7 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
   const [pricePerNight, setPricePerNight] = useState("");
   const [totalRooms, setTotalRooms] = useState("1");
   const [availableRooms, setAvailableRooms] = useState("1");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRooms();
@@ -66,11 +77,14 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
     setPricePerNight("");
     setTotalRooms("1");
     setAvailableRooms("1");
+    setImageUrl(null);
     setEditingRoom(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const images = imageUrl ? [imageUrl] : (editingRoom?.images || []);
     
     const roomData = {
       hotel_id: hotelId,
@@ -78,7 +92,8 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
       description: description || null,
       price_per_night: parseFloat(pricePerNight),
       total_rooms: parseInt(totalRooms),
-      available_rooms: parseInt(availableRooms)
+      available_rooms: parseInt(availableRooms),
+      images
     };
 
     try {
@@ -153,6 +168,7 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
     setPricePerNight(room.price_per_night.toString());
     setTotalRooms(room.total_rooms.toString());
     setAvailableRooms(room.available_rooms.toString());
+    setImageUrl(room.images?.[0] || null);
     setDialogOpen(true);
   };
 
@@ -175,7 +191,7 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
               Add Room
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Bed className="w-5 h-5 text-primary" />
@@ -184,6 +200,17 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Room Image</Label>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  onUpload={uploadImage}
+                  uploading={uploading}
+                  placeholder="Upload room photo"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label>Room Name</Label>
                 <Input
@@ -237,7 +264,7 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
                 </div>
               </div>
               
-              <Button type="submit" className="w-full gap-2">
+              <Button type="submit" className="w-full gap-2" disabled={uploading}>
                 <Sparkles className="w-4 h-4" />
                 {editingRoom ? "Update Room" : "Add Room"}
               </Button>
@@ -256,7 +283,16 @@ export function RoomManager({ hotelId, onUpdate }: RoomManagerProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {rooms.map((room) => (
-            <Card key={room.id} className="group hover:shadow-md transition-shadow">
+            <Card key={room.id} className="group hover:shadow-md transition-shadow overflow-hidden">
+              {room.images?.[0] && (
+                <div className="h-32 overflow-hidden">
+                  <img 
+                    src={room.images[0]} 
+                    alt={room.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">

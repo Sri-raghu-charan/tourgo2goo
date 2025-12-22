@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Plus, UtensilsCrossed, IndianRupee, Edit, Trash2, Sparkles } from "lucide-react";
 
 interface FoodItem {
@@ -36,6 +39,12 @@ const categoryEmojis: Record<string, string> = {
 
 export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { uploadImage, uploading } = useImageUpload({ 
+    folder: 'food', 
+    userId: user?.id || '' 
+  });
+  
   const [items, setItems] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,6 +54,7 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("veg");
   const [price, setPrice] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -72,6 +82,7 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
     setDescription("");
     setCategory("veg");
     setPrice("");
+    setImageUrl(null);
     setEditingItem(null);
   };
 
@@ -83,7 +94,8 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
       name,
       description: description || null,
       category: category as "veg" | "non_veg" | "drinks" | "desserts",
-      price: parseFloat(price)
+      price: parseFloat(price),
+      image_url: imageUrl
     };
 
     try {
@@ -157,6 +169,7 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
     setDescription(item.description || "");
     setCategory(item.category);
     setPrice(item.price.toString());
+    setImageUrl(item.image_url);
     setDialogOpen(true);
   };
 
@@ -179,7 +192,7 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
               Add Item
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <UtensilsCrossed className="w-5 h-5 text-primary" />
@@ -188,6 +201,17 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Food Image</Label>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  onUpload={uploadImage}
+                  uploading={uploading}
+                  placeholder="Upload food photo"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label>Item Name</Label>
                 <Input
@@ -235,7 +259,7 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
                 </div>
               </div>
               
-              <Button type="submit" className="w-full gap-2">
+              <Button type="submit" className="w-full gap-2" disabled={uploading}>
                 <Sparkles className="w-4 h-4" />
                 {editingItem ? "Update Item" : "Add Item"}
               </Button>
@@ -254,7 +278,16 @@ export function FoodManager({ hotelId, onUpdate }: FoodManagerProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <Card key={item.id} className="group hover:shadow-md transition-shadow">
+            <Card key={item.id} className="group hover:shadow-md transition-shadow overflow-hidden">
+              {item.image_url && (
+                <div className="h-32 overflow-hidden">
+                  <img 
+                    src={item.image_url} 
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
