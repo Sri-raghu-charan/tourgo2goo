@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { InteractiveMap } from "@/components/InteractiveMap";
 import { UserStats } from "@/components/UserStats";
@@ -8,6 +9,7 @@ import { RewardCard } from "@/components/RewardCard";
 import { ChallengesPreview } from "@/components/ChallengesPreview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 import { MapPin, Compass, Sparkles, ChevronRight, Filter, Zap } from "lucide-react";
 import heroMap from "@/assets/hero-map.jpg";
 
@@ -137,7 +139,16 @@ const categories: { name: string; value: CategoryType; emoji: string }[] = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { role, loading } = useAuth();
   const [activeCategory, setActiveCategory] = useState<CategoryType>("all");
+
+  // Redirect hotel owners to their dashboard
+  useEffect(() => {
+    if (!loading && role === 'hotel_owner') {
+      navigate('/dashboard');
+    }
+  }, [role, loading, navigate]);
   
   const filteredLocations = activeCategory === "all" 
     ? nearbyLocations 
