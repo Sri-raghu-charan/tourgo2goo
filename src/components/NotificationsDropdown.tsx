@@ -118,6 +118,7 @@ export function NotificationsDropdown({ children }: NotificationsDropdownProps) 
           <DropdownMenuItem 
             key={notification.id} 
             className="flex items-start gap-3 p-3 cursor-pointer"
+            onSelect={(e) => e.preventDefault()}
             onClick={() => markAsRead(notification.id)}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
