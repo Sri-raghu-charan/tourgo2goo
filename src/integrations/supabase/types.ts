@@ -14,16 +14,382 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          check_in: string
+          check_out: string
+          coins_used: number | null
+          created_at: string | null
+          discount_applied: number | null
+          hotel_id: string
+          id: string
+          room_id: string | null
+          special_requests: string | null
+          status: Database["public"]["Enums"]["booking_status"] | null
+          total_amount: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          check_in: string
+          check_out: string
+          coins_used?: number | null
+          created_at?: string | null
+          discount_applied?: number | null
+          hotel_id: string
+          id?: string
+          room_id?: string | null
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          total_amount: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          check_in?: string
+          check_out?: string
+          coins_used?: number | null
+          created_at?: string | null
+          discount_applied?: number | null
+          hotel_id?: string
+          id?: string
+          room_id?: string | null
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"] | null
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coin_transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coin_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discounts: {
+        Row: {
+          coins_required: number
+          created_at: string | null
+          description: string | null
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          hotel_id: string
+          id: string
+          is_active: boolean | null
+          name: string
+          target: Database["public"]["Enums"]["discount_target"]
+          updated_at: string | null
+        }
+        Insert: {
+          coins_required: number
+          created_at?: string | null
+          description?: string | null
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          hotel_id: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          target: Database["public"]["Enums"]["discount_target"]
+          updated_at?: string | null
+        }
+        Update: {
+          coins_required?: number
+          created_at?: string | null
+          description?: string | null
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value?: number
+          hotel_id?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          target?: Database["public"]["Enums"]["discount_target"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discounts_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_items: {
+        Row: {
+          category: Database["public"]["Enums"]["food_category"]
+          created_at: string | null
+          description: string | null
+          hotel_id: string
+          id: string
+          image_url: string | null
+          is_available: boolean | null
+          name: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["food_category"]
+          created_at?: string | null
+          description?: string | null
+          hotel_id: string
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["food_category"]
+          created_at?: string | null
+          description?: string | null
+          hotel_id?: string
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_items_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotels: {
+        Row: {
+          category: Database["public"]["Enums"]["hotel_category"] | null
+          created_at: string | null
+          description: string | null
+          id: string
+          images: string[] | null
+          is_active: boolean | null
+          is_verified: boolean | null
+          latitude: number | null
+          location: string
+          longitude: number | null
+          name: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["hotel_category"] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          is_active?: boolean | null
+          is_verified?: boolean | null
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          name: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["hotel_category"] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          is_active?: boolean | null
+          is_verified?: boolean | null
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          name?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string
+          id: string
+          location: string | null
+          phone: string | null
+          total_coins: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name: string
+          id?: string
+          location?: string | null
+          phone?: string | null
+          total_coins?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          location?: string | null
+          phone?: string | null
+          total_coins?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rooms: {
+        Row: {
+          amenities: string[] | null
+          available_rooms: number | null
+          created_at: string | null
+          description: string | null
+          hotel_id: string
+          id: string
+          images: string[] | null
+          is_available: boolean | null
+          name: string
+          price_per_night: number
+          total_rooms: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          amenities?: string[] | null
+          available_rooms?: number | null
+          created_at?: string | null
+          description?: string | null
+          hotel_id: string
+          id?: string
+          images?: string[] | null
+          is_available?: boolean | null
+          name: string
+          price_per_night: number
+          total_rooms?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          amenities?: string[] | null
+          available_rooms?: number | null
+          created_at?: string | null
+          description?: string | null
+          hotel_id?: string
+          id?: string
+          images?: string[] | null
+          is_available?: boolean | null
+          name?: string
+          price_per_night?: number
+          total_rooms?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "tourist" | "hotel_owner" | "admin"
+      booking_status: "pending" | "confirmed" | "cancelled" | "completed"
+      discount_target: "room" | "food"
+      discount_type: "flat" | "percentage" | "free_item"
+      food_category: "veg" | "non_veg" | "drinks" | "desserts"
+      hotel_category: "budget" | "premium" | "resort"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +516,13 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["tourist", "hotel_owner", "admin"],
+      booking_status: ["pending", "confirmed", "cancelled", "completed"],
+      discount_target: ["room", "food"],
+      discount_type: ["flat", "percentage", "free_item"],
+      food_category: ["veg", "non_veg", "drinks", "desserts"],
+      hotel_category: ["budget", "premium", "resort"],
+    },
   },
 } as const

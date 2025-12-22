@@ -1,0 +1,576 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  ArrowLeft, 
+  MapPin, 
+  Hotel, 
+  Bed, 
+  UtensilsCrossed, 
+  Coins, 
+  IndianRupee,
+  Star,
+  Sparkles,
+  Calendar as CalendarIcon,
+  Percent,
+  Gift
+} from "lucide-react";
+import { format, differenceInDays } from "date-fns";
+import { Navigation } from "@/components/Navigation";
+
+interface HotelData {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string;
+  category: string;
+  images: string[];
+  is_verified: boolean;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  description: string | null;
+  price_per_night: number;
+  available_rooms: number;
+  is_available: boolean;
+}
+
+interface FoodItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  is_available: boolean;
+}
+
+interface Discount {
+  id: string;
+  name: string;
+  description: string | null;
+  coins_required: number;
+  discount_type: string;
+  discount_value: number;
+  target: string;
+}
+
+const categoryEmojis: Record<string, string> = {
+  veg: "🥗",
+  non_veg: "🍖",
+  drinks: "🥤",
+  desserts: "🍰"
+};
+
+export default function HotelDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  
+  const [hotel, setHotel] = useState<HotelData | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Booking state
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedDiscount, setSelectedDiscount] = useState<Discount | null>(null);
+  const [checkIn, setCheckIn] = useState<Date | undefined>(undefined);
+  const [checkOut, setCheckOut] = useState<Date | undefined>(undefined);
+  const [specialRequests, setSpecialRequests] = useState("");
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchHotelData();
+    }
+  }, [id]);
+
+  const fetchHotelData = async () => {
+    try {
+      const [hotelRes, roomsRes, foodRes, discountsRes] = await Promise.all([
+        supabase.from('hotels').select('*').eq('id', id).single(),
+        supabase.from('rooms').select('*').eq('hotel_id', id).eq('is_available', true),
+        supabase.from('food_items').select('*').eq('hotel_id', id).eq('is_available', true),
+        supabase.from('discounts').select('*').eq('hotel_id', id).eq('is_active', true)
+      ]);
+
+      if (hotelRes.data) setHotel(hotelRes.data as HotelData);
+      setRooms(roomsRes.data || []);
+      setFoodItems(foodRes.data || []);
+      setDiscounts(discountsRes.data || []);
+    } catch (error) {
+      console.error('Error fetching hotel:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateTotal = () => {
+    if (!selectedRoom || !checkIn || !checkOut) return 0;
+    const nights = differenceInDays(checkOut, checkIn);
+    if (nights <= 0) return 0;
+    
+    let total = selectedRoom.price_per_night * nights;
+    
+    if (selectedDiscount && selectedDiscount.target === 'room') {
+      if (selectedDiscount.discount_type === 'flat') {
+        total -= selectedDiscount.discount_value;
+      } else if (selectedDiscount.discount_type === 'percentage') {
+        total -= (total * selectedDiscount.discount_value / 100);
+      }
+    }
+    
+    return Math.max(0, total);
+  };
+
+  const handleBooking = async () => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to book a room",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
+    if (!selectedRoom || !checkIn || !checkOut || !hotel) return;
+
+    const nights = differenceInDays(checkOut, checkIn);
+    if (nights <= 0) {
+      toast({
+        title: "Invalid Dates",
+        description: "Check-out must be after check-in",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if user has enough coins
+    const coinsNeeded = selectedDiscount?.coins_required || 0;
+    const userCoins = profile?.total_coins || 0;
+    
+    if (selectedDiscount && userCoins < coinsNeeded) {
+      toast({
+        title: "Not Enough Coins",
+        description: `You need ${coinsNeeded} coins for this discount. You have ${userCoins}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBookingLoading(true);
+
+    try {
+      const totalAmount = calculateTotal();
+      const discountApplied = selectedDiscount 
+        ? (selectedRoom.price_per_night * nights) - totalAmount 
+        : 0;
+
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user.id,
+          hotel_id: hotel.id,
+          room_id: selectedRoom.id,
+          check_in: format(checkIn, 'yyyy-MM-dd'),
+          check_out: format(checkOut, 'yyyy-MM-dd'),
+          total_amount: totalAmount,
+          coins_used: coinsNeeded,
+          discount_applied: discountApplied,
+          special_requests: specialRequests || null
+        });
+
+      if (bookingError) throw bookingError;
+
+      // Deduct coins if discount was used
+      if (selectedDiscount && coinsNeeded > 0) {
+        const { error: coinsError } = await supabase
+          .from('profiles')
+          .update({ total_coins: userCoins - coinsNeeded })
+          .eq('user_id', user.id);
+
+        if (coinsError) console.error('Error deducting coins:', coinsError);
+
+        await supabase
+          .from('coin_transactions')
+          .insert({
+            user_id: user.id,
+            amount: -coinsNeeded,
+            transaction_type: 'redemption',
+            description: `Redeemed for ${selectedDiscount.name} at ${hotel.name}`
+          });
+      }
+
+      toast({
+        title: "Booking Confirmed! 🎉",
+        description: `Your stay at ${hotel.name} is booked!`,
+      });
+
+      setBookingDialogOpen(false);
+      navigate('/profile');
+    } catch (error: any) {
+      toast({
+        title: "Booking Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  const getDiscountDisplay = (discount: Discount) => {
+    if (discount.discount_type === 'percentage') return `${discount.discount_value}% off`;
+    if (discount.discount_type === 'free_item') return 'Free Item';
+    return `₹${discount.discount_value} off`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!hotel) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Hotel className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Hotel not found</h2>
+          <Button onClick={() => navigate('/hotels')} className="mt-4">
+            Back to Hotels
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const categoryLabels: Record<string, string> = {
+    budget: "💰 Budget",
+    premium: "⭐ Premium",
+    resort: "🏝️ Resort"
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 pb-24">
+      {/* Header */}
+      <div className="relative h-56 bg-gradient-to-br from-secondary to-teal-light">
+        {hotel.images?.[0] && (
+          <img 
+            src={hotel.images[0]} 
+            alt={hotel.name}
+            className="w-full h-full object-cover opacity-80"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 left-4 bg-card/80 backdrop-blur-sm"
+          onClick={() => navigate('/hotels')}
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="secondary" className="bg-card/90">
+              {categoryLabels[hotel.category]}
+            </Badge>
+            {hotel.is_verified && (
+              <Badge className="bg-green-500 text-white">✓ Verified</Badge>
+            )}
+          </div>
+          <h1 className="text-2xl font-display font-bold text-foreground">{hotel.name}</h1>
+          <p className="flex items-center gap-1 text-muted-foreground mt-1">
+            <MapPin className="w-4 h-4" />
+            {hotel.location}
+          </p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-6">
+        {hotel.description && (
+          <p className="text-muted-foreground mb-6">{hotel.description}</p>
+        )}
+
+        <Tabs defaultValue="rooms" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-muted/50">
+            <TabsTrigger value="rooms" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Bed className="w-4 h-4" />
+              Rooms
+            </TabsTrigger>
+            <TabsTrigger value="food" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <UtensilsCrossed className="w-4 h-4" />
+              Food
+            </TabsTrigger>
+            <TabsTrigger value="offers" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Coins className="w-4 h-4" />
+              Offers
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Rooms Tab */}
+          <TabsContent value="rooms" className="mt-6 space-y-4">
+            {rooms.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Bed className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No rooms available</p>
+              </div>
+            ) : (
+              rooms.map((room) => (
+                <Card key={room.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg text-foreground">{room.name}</h3>
+                        {room.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{room.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="secondary" className="gap-1">
+                            <IndianRupee className="w-3 h-3" />
+                            {room.price_per_night}/night
+                          </Badge>
+                          <Badge variant="outline">
+                            {room.available_rooms} available
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <Dialog open={bookingDialogOpen && selectedRoom?.id === room.id} onOpenChange={setBookingDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            className="gap-2"
+                            onClick={() => {
+                              setSelectedRoom(room);
+                              setBookingDialogOpen(true);
+                            }}
+                          >
+                            <CalendarIcon className="w-4 h-4" />
+                            Book Now
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Book {room.name}</DialogTitle>
+                          </DialogHeader>
+                          
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Check-in</Label>
+                                <Calendar
+                                  mode="single"
+                                  selected={checkIn}
+                                  onSelect={setCheckIn}
+                                  disabled={(date) => date < new Date()}
+                                  className="rounded-md border"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Check-out</Label>
+                                <Calendar
+                                  mode="single"
+                                  selected={checkOut}
+                                  onSelect={setCheckOut}
+                                  disabled={(date) => !checkIn || date <= checkIn}
+                                  className="rounded-md border"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Discount Selection */}
+                            {discounts.filter(d => d.target === 'room').length > 0 && (
+                              <div className="space-y-2">
+                                <Label>Apply Coin Discount</Label>
+                                <div className="space-y-2">
+                                  {discounts.filter(d => d.target === 'room').map((discount) => (
+                                    <Button
+                                      key={discount.id}
+                                      type="button"
+                                      variant={selectedDiscount?.id === discount.id ? "default" : "outline"}
+                                      className="w-full justify-between"
+                                      onClick={() => setSelectedDiscount(
+                                        selectedDiscount?.id === discount.id ? null : discount
+                                      )}
+                                    >
+                                      <span className="flex items-center gap-2">
+                                        <Coins className="w-4 h-4" />
+                                        {discount.name}
+                                      </span>
+                                      <span className="text-sm">
+                                        {discount.coins_required} coins = {getDiscountDisplay(discount)}
+                                      </span>
+                                    </Button>
+                                  ))}
+                                </div>
+                                {profile && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Your balance: <span className="font-semibold text-accent">{profile.total_coins} coins</span>
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="space-y-2">
+                              <Label>Special Requests (optional)</Label>
+                              <Textarea
+                                value={specialRequests}
+                                onChange={(e) => setSpecialRequests(e.target.value)}
+                                placeholder="Any special requirements..."
+                                rows={2}
+                              />
+                            </div>
+                            
+                            {/* Price Summary */}
+                            {checkIn && checkOut && (
+                              <Card className="bg-muted/50">
+                                <CardContent className="p-4 space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span>{differenceInDays(checkOut, checkIn)} nights × ₹{room.price_per_night}</span>
+                                    <span>₹{differenceInDays(checkOut, checkIn) * room.price_per_night}</span>
+                                  </div>
+                                  {selectedDiscount && (
+                                    <div className="flex justify-between text-sm text-green-600">
+                                      <span>Discount ({selectedDiscount.name})</span>
+                                      <span>-₹{(differenceInDays(checkOut, checkIn) * room.price_per_night) - calculateTotal()}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                                    <span>Total</span>
+                                    <span className="text-primary">₹{calculateTotal()}</span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            )}
+                            
+                            <Button 
+                              className="w-full gap-2" 
+                              onClick={handleBooking}
+                              disabled={!checkIn || !checkOut || bookingLoading}
+                            >
+                              {bookingLoading ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary-foreground" />
+                              ) : (
+                                <>
+                                  <Sparkles className="w-4 h-4" />
+                                  Confirm Booking
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Food Tab */}
+          <TabsContent value="food" className="mt-6">
+            {foodItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <UtensilsCrossed className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No menu items available</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {foodItems.map((item) => (
+                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{categoryEmojis[item.category]}</span>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-foreground">{item.name}</h4>
+                          {item.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                          )}
+                          <Badge variant="secondary" className="gap-1 mt-2">
+                            <IndianRupee className="w-3 h-3" />
+                            {item.price}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Offers Tab */}
+          <TabsContent value="offers" className="mt-6">
+            {discounts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Coins className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No coin offers available</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {discounts.map((discount) => (
+                  <Card key={discount.id} className="hover:shadow-md transition-shadow border-accent/30 bg-gradient-to-br from-accent/5 to-transparent">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            {discount.target === 'room' ? (
+                              <Bed className="w-5 h-5 text-secondary" />
+                            ) : (
+                              <UtensilsCrossed className="w-5 h-5 text-primary" />
+                            )}
+                            <h4 className="font-semibold text-foreground">{discount.name}</h4>
+                          </div>
+                          {discount.description && (
+                            <p className="text-sm text-muted-foreground">{discount.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-3">
+                            <Badge className="bg-accent text-accent-foreground gap-1">
+                              <Coins className="w-3 h-3" />
+                              {discount.coins_required} coins
+                            </Badge>
+                            <Badge variant="outline" className="gap-1">
+                              {discount.discount_type === 'percentage' && <Percent className="w-3 h-3" />}
+                              {discount.discount_type === 'flat' && <IndianRupee className="w-3 h-3" />}
+                              {discount.discount_type === 'free_item' && <Gift className="w-3 h-3" />}
+                              {getDiscountDisplay(discount)}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Navigation />
+    </div>
+  );
+}
