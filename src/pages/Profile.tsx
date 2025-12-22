@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +7,23 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   User, MapPin, Trophy, Star, Flame, Settings, LogOut, LogIn,
-  Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles
+  Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles,
+  Utensils, Bed, Building
 } from "lucide-react";
+
+interface HotelData {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string;
+  images: string[];
+  category: string | null;
+  rooms: { id: string; name: string; price_per_night: number; description: string | null }[];
+  food_items: { id: string; name: string; price: number; category: string; description: string | null }[];
+}
 
 const achievements = [
   { name: "First Steps", description: "Complete your first check-in", earned: true, icon: "🎯" },
@@ -31,6 +45,54 @@ const recentActivity = [
 const Profile = () => {
   const navigate = useNavigate();
   const { user, profile, role, loading, signOut } = useAuth();
+  const [hotels, setHotels] = useState<HotelData[]>([]);
+  const [loadingHotels, setLoadingHotels] = useState(true);
+
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        // Fetch active hotels with their rooms and food items
+        const { data: hotelsData, error: hotelsError } = await supabase
+          .from('hotels')
+          .select('id, name, description, location, images, category')
+          .eq('is_active', true);
+
+        if (hotelsError) throw hotelsError;
+
+        // For each hotel, fetch rooms and food items
+        const hotelsWithDetails = await Promise.all(
+          (hotelsData || []).map(async (hotel) => {
+            const [roomsRes, foodRes] = await Promise.all([
+              supabase
+                .from('rooms')
+                .select('id, name, price_per_night, description')
+                .eq('hotel_id', hotel.id)
+                .eq('is_available', true),
+              supabase
+                .from('food_items')
+                .select('id, name, price, category, description')
+                .eq('hotel_id', hotel.id)
+                .eq('is_available', true)
+            ]);
+
+            return {
+              ...hotel,
+              rooms: roomsRes.data || [],
+              food_items: foodRes.data || []
+            };
+          })
+        );
+
+        setHotels(hotelsWithDetails);
+      } catch (error) {
+        console.error('Error fetching hotels:', error);
+      } finally {
+        setLoadingHotels(false);
+      }
+    };
+
+    fetchHotels();
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -224,8 +286,12 @@ const Profile = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="achievements" className="w-full">
-            <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1">
+          <Tabs defaultValue="hotels" className="w-full">
+            <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1 flex-wrap">
+              <TabsTrigger value="hotels" className="gap-2">
+                <Building className="w-4 h-4" />
+                Hotels
+              </TabsTrigger>
               <TabsTrigger value="achievements" className="gap-2">
                 <Award className="w-4 h-4" />
                 Achievements
@@ -239,6 +305,114 @@ const Profile = () => {
                 Stats
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="hotels">
+              {loadingHotels ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : hotels.length === 0 ? (
+                <Card className="border-border/50">
+                  <CardContent className="py-12 text-center">
+                    <Building className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">No hotels available yet</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  {hotels.map((hotel) => (
+                    <Card key={hotel.id} className="border-border/50 overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                              <Hotel className="w-6 h-6 text-primary" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg">{hotel.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {hotel.location}
+                              </p>
+                            </div>
+                          </div>
+                          {hotel.category && (
+                            <Badge variant="secondary" className="capitalize">{hotel.category}</Badge>
+                          )}
+                        </div>
+                        {hotel.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{hotel.description}</p>
+                        )}
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-4">
+                        {/* Rooms Section */}
+                        {hotel.rooms.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
+                              <Bed className="w-4 h-4 text-primary" />
+                              Available Rooms ({hotel.rooms.length})
+                            </h4>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {hotel.rooms.map((room) => (
+                                <div key={room.id} className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-foreground">{room.name}</span>
+                                    <Badge variant="points">${room.price_per_night}/night</Badge>
+                                  </div>
+                                  {room.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{room.description}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Food Items Section */}
+                        {hotel.food_items.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground flex items-center gap-2 mb-3">
+                              <Utensils className="w-4 h-4 text-secondary" />
+                              Menu Items ({hotel.food_items.length})
+                            </h4>
+                            <div className="grid sm:grid-cols-2 gap-2">
+                              {hotel.food_items.map((item) => (
+                                <div key={item.id} className="p-3 rounded-lg bg-muted/50 border border-border/30">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-foreground">{item.name}</span>
+                                      <Badge variant="outline" className="text-xs capitalize">{item.category}</Badge>
+                                    </div>
+                                    <Badge variant="streak">${item.price}</Badge>
+                                  </div>
+                                  {item.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {hotel.rooms.length === 0 && hotel.food_items.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No rooms or menu items added yet
+                          </p>
+                        )}
+
+                        <Button 
+                          className="w-full mt-2" 
+                          variant="outline"
+                          onClick={() => navigate(`/hotels/${hotel.id}`)}
+                        >
+                          View Hotel Details
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
             <TabsContent value="achievements">
               <div className="grid sm:grid-cols-2 gap-4">
