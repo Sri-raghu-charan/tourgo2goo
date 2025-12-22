@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Plus, Coins, Percent, IndianRupee, Gift, Edit, Trash2, Sparkles, Bed, UtensilsCrossed } from "lucide-react";
 
 interface Discount {
@@ -21,6 +24,7 @@ interface Discount {
   discount_value: number;
   target: string;
   is_active: boolean;
+  image_url?: string | null;
 }
 
 interface DiscountManagerProps {
@@ -30,6 +34,12 @@ interface DiscountManagerProps {
 
 export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { uploadImage, uploading } = useImageUpload({ 
+    folder: 'discounts', 
+    userId: user?.id || '' 
+  });
+  
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -41,6 +51,7 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
   const [discountType, setDiscountType] = useState<string>("flat");
   const [discountValue, setDiscountValue] = useState("");
   const [target, setTarget] = useState<string>("room");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDiscounts();
@@ -70,6 +81,7 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
     setDiscountType("flat");
     setDiscountValue("");
     setTarget("room");
+    setImageUrl(null);
     setEditingDiscount(null);
   };
 
@@ -159,6 +171,7 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
     setDiscountType(discount.discount_type);
     setDiscountValue(discount.discount_value.toString());
     setTarget(discount.target);
+    setImageUrl(discount.image_url || null);
     setDialogOpen(true);
   };
 
@@ -190,7 +203,7 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
               Add Discount
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-accent" />
@@ -199,6 +212,17 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Discount Image (Optional)</Label>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  onUpload={uploadImage}
+                  uploading={uploading}
+                  placeholder="Upload discount banner"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label>Discount Name</Label>
                 <Input
@@ -270,7 +294,7 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
                 </div>
               </div>
               
-              <Button type="submit" className="w-full gap-2">
+              <Button type="submit" className="w-full gap-2" disabled={uploading}>
                 <Sparkles className="w-4 h-4" />
                 {editingDiscount ? "Update Discount" : "Create Discount"}
               </Button>
@@ -289,7 +313,16 @@ export function DiscountManager({ hotelId, onUpdate }: DiscountManagerProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {discounts.map((discount) => (
-            <Card key={discount.id} className={`group hover:shadow-md transition-shadow ${!discount.is_active ? 'opacity-60' : ''}`}>
+            <Card key={discount.id} className={`group hover:shadow-md transition-shadow overflow-hidden ${!discount.is_active ? 'opacity-60' : ''}`}>
+              {discount.image_url && (
+                <div className="h-24 overflow-hidden">
+                  <img 
+                    src={discount.image_url} 
+                    alt={discount.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">

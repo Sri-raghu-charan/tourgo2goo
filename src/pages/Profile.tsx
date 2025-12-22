@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +8,12 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useToast } from "@/hooks/use-toast";
 import { 
   User, MapPin, Trophy, Star, Flame, Settings, LogOut, LogIn,
   Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles,
-  Utensils, Bed, Building
+  Utensils, Bed, Building, Loader2
 } from "lucide-react";
 
 interface HotelData {
@@ -45,8 +47,22 @@ const recentActivity = [
 const Profile = () => {
   const navigate = useNavigate();
   const { user, profile, role, loading, signOut } = useAuth();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadImage, uploading } = useImageUpload({ 
+    folder: 'avatars', 
+    userId: user?.id || '' 
+  });
+  
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.avatar_url) {
+      setAvatarUrl(profile.avatar_url);
+    }
+  }, [profile]);
 
   useEffect(() => {
     const fetchHotels = async () => {
@@ -99,6 +115,36 @@ const Profile = () => {
     navigate('/auth');
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const url = await uploadImage(file);
+    if (url) {
+      // Update profile in database
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: url })
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast({
+          title: "Error updating profile",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setAvatarUrl(url);
+        toast({ title: "Profile picture updated!" });
+      }
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -147,7 +193,7 @@ const Profile = () => {
   // Logged in user data
   const userData = {
     name: profile?.full_name || "Explorer",
-    avatar: profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
+    avatar: avatarUrl || profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
     level: Math.floor((profile?.total_coins || 0) / 1000) + 1,
     totalPoints: profile?.total_coins || 0,
     placesVisited: 47,
@@ -179,8 +225,24 @@ const Profile = () => {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-soft hover:scale-105 transition-transform">
-                    <Camera className="w-4 h-4 text-primary-foreground" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                  <button 
+                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-soft hover:scale-105 transition-transform disabled:opacity-50"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4 text-primary-foreground" />
+                    )}
                   </button>
                 </div>
                 
