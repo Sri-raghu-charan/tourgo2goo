@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,10 +8,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Bell, MapPin, Trophy, Gift, Star, Check } from "lucide-react";
 
-const notifications = [
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  unread: boolean;
+}
+
+const initialNotifications: Notification[] = [
   {
     id: 1,
     type: "nearby",
@@ -50,7 +59,19 @@ interface NotificationsDropdownProps {
 }
 
 export function NotificationsDropdown({ children }: NotificationsDropdownProps) {
+  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  
   const unreadCount = notifications.filter((n) => n.unread).length;
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+  };
+
+  const markAsRead = (id: number) => {
+    setNotifications(prev => prev.map(n => 
+      n.id === id ? { ...n, unread: false } : n
+    ));
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -76,7 +97,16 @@ export function NotificationsDropdown({ children }: NotificationsDropdownProps) 
         <DropdownMenuLabel className="flex items-center justify-between">
           <span className="font-display font-bold">Notifications</span>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs h-auto py-1 px-2"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markAllAsRead();
+              }}
+            >
               <Check className="w-3 h-3 mr-1" />
               Mark all read
             </Button>
@@ -88,6 +118,7 @@ export function NotificationsDropdown({ children }: NotificationsDropdownProps) 
           <DropdownMenuItem 
             key={notification.id} 
             className="flex items-start gap-3 p-3 cursor-pointer"
+            onClick={() => markAsRead(notification.id)}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
               notification.type === "nearby" ? "bg-primary/10" :
