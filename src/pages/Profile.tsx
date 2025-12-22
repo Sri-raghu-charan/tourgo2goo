@@ -1,12 +1,14 @@
+import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 import { 
-  User, MapPin, Trophy, Star, Flame, Settings, ChevronRight, 
-  Camera, Award, Clock, Target, TrendingUp, Calendar
+  User, MapPin, Trophy, Star, Flame, Settings, LogOut, LogIn,
+  Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles
 } from "lucide-react";
 
 const achievements = [
@@ -27,21 +29,74 @@ const recentActivity = [
 ];
 
 const Profile = () => {
-  const user = {
-    name: "Alex Explorer",
-    username: "@alexexplorer",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
-    level: 5,
-    totalPoints: 4750,
+  const navigate = useNavigate();
+  const { user, profile, role, loading, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Not logged in - show login prompt
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="pt-24 md:pt-32 pb-32 md:pb-16 px-4">
+          <div className="container mx-auto max-w-md">
+            <Card className="text-center border-primary/20">
+              <CardContent className="py-12 space-y-6">
+                <div className="w-20 h-20 mx-auto rounded-2xl gradient-primary flex items-center justify-center animate-bounce-soft">
+                  <User className="w-10 h-10 text-primary-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-display font-bold text-foreground">Welcome to TourGo!</h2>
+                  <p className="text-muted-foreground">Login to track your adventures, earn coins, and unlock rewards</p>
+                </div>
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full gap-2 gradient-primary hover:opacity-90" 
+                    size="lg"
+                    onClick={() => navigate('/auth')}
+                  >
+                    <LogIn className="w-5 h-5" />
+                    Login / Sign Up
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Hotel owner? <button onClick={() => navigate('/auth')} className="text-secondary font-semibold hover:underline">Register your hotel</button>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Logged in user data
+  const userData = {
+    name: profile?.full_name || "Explorer",
+    avatar: profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
+    level: Math.floor((profile?.total_coins || 0) / 1000) + 1,
+    totalPoints: profile?.total_coins || 0,
     placesVisited: 47,
     currentStreak: 12,
     rank: 156,
-    joinedDate: "March 2024",
-    pointsToNextLevel: 1250,
-    currentLevelPoints: 750,
+    joinedDate: "2024",
+    pointsToNextLevel: 1000,
+    currentLevelPoints: (profile?.total_coins || 0) % 1000,
   };
 
-  const levelProgress = (user.currentLevelPoints / user.pointsToNextLevel) * 100;
+  const levelProgress = (userData.currentLevelPoints / userData.pointsToNextLevel) * 100;
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,8 +112,8 @@ const Profile = () => {
                 <div className="relative">
                   <div className="w-24 h-24 rounded-2xl border-4 border-background overflow-hidden shadow-medium">
                     <img
-                      src={user.avatar}
-                      alt={user.name}
+                      src={userData.avatar}
+                      alt={userData.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -69,30 +124,69 @@ const Profile = () => {
                 
                 <div className="flex-1 text-center sm:text-left">
                   <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                    <h1 className="font-display font-bold text-2xl text-foreground">{user.name}</h1>
-                    <Badge variant="level" className="text-xs">Lvl {user.level}</Badge>
+                    <h1 className="font-display font-bold text-2xl text-foreground">{userData.name}</h1>
+                    <Badge variant="level" className="text-xs">Lvl {userData.level}</Badge>
+                    {role === 'hotel_owner' && (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Hotel className="w-3 h-3" />
+                        Hotel Owner
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-muted-foreground text-sm">{user.username}</p>
+                  <p className="text-muted-foreground text-sm">{user.email}</p>
                 </div>
                 
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Edit Profile
-                </Button>
+                <div className="flex gap-2">
+                  {role === 'hotel_owner' && (
+                    <Button variant="secondary" size="sm" className="gap-2" onClick={() => navigate('/dashboard')}>
+                      <Hotel className="w-4 h-4" />
+                      Dashboard
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Edit
+                  </Button>
+                  <Button variant="destructive" size="sm" className="gap-2" onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </Button>
+                </div>
               </div>
               
               {/* Level Progress */}
               <div className="mt-6">
                 <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">Level {user.level}</span>
+                  <span className="text-muted-foreground">Level {userData.level}</span>
                   <span className="font-semibold text-foreground">
-                    {user.currentLevelPoints}/{user.pointsToNextLevel} XP
+                    {userData.currentLevelPoints}/{userData.pointsToNextLevel} XP
                   </span>
                 </div>
                 <Progress value={levelProgress} className="h-2" />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {user.pointsToNextLevel - user.currentLevelPoints} XP to reach Level {user.level + 1}
+                  {userData.pointsToNextLevel - userData.currentLevelPoints} XP to reach Level {userData.level + 1}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Coin Wallet */}
+          <Card className="mb-6 bg-gradient-to-r from-accent/20 to-sunny-light/20 border-accent/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-accent/30 flex items-center justify-center animate-pulse-glow">
+                    <Coins className="w-7 h-7 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Your Coin Balance</p>
+                    <p className="text-3xl font-display font-bold text-foreground">{userData.totalPoints.toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button className="gap-2" onClick={() => navigate('/hotels')}>
+                  <Sparkles className="w-4 h-4" />
+                  Redeem
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -102,28 +196,28 @@ const Profile = () => {
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardContent className="p-4 text-center">
                 <Star className="w-6 h-6 mx-auto mb-2 text-accent" />
-                <p className="font-display font-bold text-2xl text-foreground">{user.totalPoints.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Total Points</p>
+                <p className="font-display font-bold text-2xl text-foreground">{userData.totalPoints.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Total Coins</p>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardContent className="p-4 text-center">
                 <MapPin className="w-6 h-6 mx-auto mb-2 text-primary" />
-                <p className="font-display font-bold text-2xl text-foreground">{user.placesVisited}</p>
+                <p className="font-display font-bold text-2xl text-foreground">{userData.placesVisited}</p>
                 <p className="text-xs text-muted-foreground">Places Visited</p>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardContent className="p-4 text-center">
                 <Flame className="w-6 h-6 mx-auto mb-2 text-coral" />
-                <p className="font-display font-bold text-2xl text-foreground">{user.currentStreak}</p>
+                <p className="font-display font-bold text-2xl text-foreground">{userData.currentStreak}</p>
                 <p className="text-xs text-muted-foreground">Day Streak</p>
               </CardContent>
             </Card>
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardContent className="p-4 text-center">
                 <Trophy className="w-6 h-6 mx-auto mb-2 text-teal" />
-                <p className="font-display font-bold text-2xl text-foreground">#{user.rank}</p>
+                <p className="font-display font-bold text-2xl text-foreground">#{userData.rank}</p>
                 <p className="text-xs text-muted-foreground">Global Rank</p>
               </CardContent>
             </Card>
@@ -239,7 +333,7 @@ const Profile = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="font-display font-bold text-2xl text-foreground">{user.joinedDate}</p>
+                    <p className="font-display font-bold text-2xl text-foreground">{userData.joinedDate}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/50">
