@@ -10,10 +10,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useToast } from "@/hooks/use-toast";
+import { MyBookings } from "@/components/MyBookings";
 import { 
   User, MapPin, Trophy, Star, Flame, Settings, LogOut, LogIn,
   Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles,
-  Utensils, Bed, Building, Loader2
+  Utensils, Bed, Building, Loader2, CalendarCheck
 } from "lucide-react";
 
 interface HotelData {
@@ -348,8 +349,12 @@ const Profile = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs defaultValue="hotels" className="w-full">
+          <Tabs defaultValue="bookings" className="w-full">
             <TabsList className="w-full justify-start mb-6 bg-muted/50 p-1 flex-wrap">
+              <TabsTrigger value="bookings" className="gap-2">
+                <CalendarCheck className="w-4 h-4" />
+                My Bookings
+              </TabsTrigger>
               <TabsTrigger value="hotels" className="gap-2">
                 <Building className="w-4 h-4" />
                 Hotels
@@ -367,6 +372,10 @@ const Profile = () => {
                 Stats
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="bookings">
+              <MyBookings userId={user.id} />
+            </TabsContent>
 
             <TabsContent value="hotels">
               {loadingHotels ? (
