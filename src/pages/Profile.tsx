@@ -423,7 +423,7 @@ const Profile = () => {
                               <Bed className="w-4 h-4 text-primary" />
                               Available Rooms ({hotel.rooms.length})
                             </h4>
-                            <div className="grid sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               {hotel.rooms.map((room) => (
                                 <div key={room.id} className="p-3 rounded-lg bg-muted/50 border border-border/30">
                                   <div className="flex items-center justify-between">
@@ -446,7 +446,7 @@ const Profile = () => {
                               <Utensils className="w-4 h-4 text-secondary" />
                               Menu Items ({hotel.food_items.length})
                             </h4>
-                            <div className="grid sm:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               {hotel.food_items.map((item) => (
                                 <div key={item.id} className="p-3 rounded-lg bg-muted/50 border border-border/30">
                                   <div className="flex items-center justify-between">
