@@ -231,9 +231,9 @@ const Profile = () => {
     );
   }
 
-  // Logged in user data
+  // Logged in user data - use editName for real-time updates after saving
   const userData = {
-    name: profile?.full_name || "Explorer",
+    name: editName || profile?.full_name || "Explorer",
     avatar: avatarUrl || profile?.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
     level: Math.floor((profile?.total_coins || 0) / 1000) + 1,
     totalPoints: profile?.total_coins || 0,
@@ -243,6 +243,8 @@ const Profile = () => {
     joinedDate: "2024",
     pointsToNextLevel: 1000,
     currentLevelPoints: (profile?.total_coins || 0) % 1000,
+    phone: editPhone || profile?.phone || "",
+    location: editLocation || profile?.location || "",
   };
 
   const levelProgress = (userData.currentLevelPoints / userData.pointsToNextLevel) * 100;
