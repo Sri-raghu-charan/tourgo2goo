@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Building2, MapPin, FileText, Sparkles } from "lucide-react";
+import { Plus, Building2, MapPin, FileText, Sparkles, Coins } from "lucide-react";
 
 interface HotelFormProps {
   onSuccess: () => void;
@@ -24,6 +24,7 @@ export function HotelForm({ onSuccess }: HotelFormProps) {
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("budget");
+  const [baseCoinDeduction, setBaseCoinDeduction] = useState<number>(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +41,8 @@ export function HotelForm({ onSuccess }: HotelFormProps) {
           name,
           location,
           description,
-          category: category as "budget" | "premium" | "resort"
+          category: category as "budget" | "premium" | "resort",
+          base_coin_deduction: baseCoinDeduction
         });
 
       if (error) throw error;
@@ -134,6 +136,24 @@ export function HotelForm({ onSuccess }: HotelFormProps) {
                 <SelectItem value="resort">🏝️ Resort</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="base-coins" className="flex items-center gap-2">
+              <Coins className="w-4 h-4 text-muted-foreground" />
+              Base Coin Deduction (per booking)
+            </Label>
+            <Input
+              id="base-coins"
+              type="number"
+              min="0"
+              value={baseCoinDeduction}
+              onChange={(e) => setBaseCoinDeduction(parseInt(e.target.value) || 0)}
+              placeholder="0"
+            />
+            <p className="text-xs text-muted-foreground">
+              Coins deducted from user for every room booking
+            </p>
           </div>
           
           <Button type="submit" className="w-full gap-2" disabled={loading}>
