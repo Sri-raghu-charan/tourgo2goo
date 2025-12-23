@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { SearchSheet } from "./SearchSheet";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { useAuth } from "@/hooks/useAuth";
+import tourgoLogo from "@/assets/tourgo-logo.jpeg";
 
 interface NavItem {
   icon: React.ReactNode;
@@ -43,23 +44,8 @@ export function Navigation() {
       <nav className="fixed top-0 left-0 right-0 z-50 hidden md:block">
         <div className="container mx-auto px-4 py-4">
           <div className="bg-card/80 backdrop-blur-lg rounded-2xl shadow-medium px-6 py-3 flex items-center justify-between">
-            <Link to={role === 'hotel_owner' ? '/dashboard' : '/'} className="flex items-center gap-2">
-              <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center shadow-glow-primary",
-                role === 'hotel_owner' ? "gradient-secondary" : "gradient-primary"
-              )}>
-                {role === 'hotel_owner' ? (
-                  <Hotel className="w-5 h-5 text-secondary-foreground" />
-                ) : (
-                  <MapPin className="w-5 h-5 text-primary-foreground" />
-                )}
-              </div>
-              <span className={cn(
-                "font-display font-bold text-xl",
-                role === 'hotel_owner' ? "text-gradient-secondary" : "text-gradient-primary"
-              )}>
-                TourGo
-              </span>
+            <Link to={role === 'hotel_owner' ? '/dashboard' : '/'} className="flex items-center">
+              <img src={tourgoLogo} alt="TourGo" className="h-10 object-contain" />
             </Link>
 
             <div className="flex items-center gap-1">
@@ -150,23 +136,8 @@ export function Navigation() {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 md:hidden">
         <div className="bg-card/80 backdrop-blur-lg px-4 py-3 flex items-center justify-between safe-area-pt">
-          <Link to={role === 'hotel_owner' ? '/dashboard' : '/'} className="flex items-center gap-2">
-            <div className={cn(
-              "w-9 h-9 rounded-xl flex items-center justify-center",
-              role === 'hotel_owner' ? "gradient-secondary" : "gradient-primary"
-            )}>
-              {role === 'hotel_owner' ? (
-                <Hotel className="w-4 h-4 text-secondary-foreground" />
-              ) : (
-                <MapPin className="w-4 h-4 text-primary-foreground" />
-              )}
-            </div>
-            <span className={cn(
-              "font-display font-bold text-lg",
-              role === 'hotel_owner' ? "text-gradient-secondary" : "text-gradient-primary"
-            )}>
-              TourGo
-            </span>
+          <Link to={role === 'hotel_owner' ? '/dashboard' : '/'} className="flex items-center">
+            <img src={tourgoLogo} alt="TourGo" className="h-9 object-contain" />
           </Link>
           
           <div className="flex items-center gap-2">
