@@ -12,14 +12,9 @@ import {
   Bed, 
   UtensilsCrossed, 
   Coins, 
-  Plus, 
-  Settings, 
   LogOut,
   Building2,
   Calendar,
-  TrendingUp,
-  Users,
-  Star,
   MapPin
 } from "lucide-react";
 import { HotelForm } from "@/components/dashboard/HotelForm";
@@ -134,17 +129,9 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-              <MapPin className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 

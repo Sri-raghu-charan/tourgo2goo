@@ -48,6 +48,7 @@ interface Room {
   price_per_night: number;
   available_rooms: number;
   is_available: boolean;
+  images: string[] | null;
 }
 
 interface FoodItem {
@@ -57,6 +58,7 @@ interface FoodItem {
   category: string;
   price: number;
   is_available: boolean;
+  image_url: string | null;
 }
 
 interface Discount {
@@ -342,7 +344,16 @@ export default function HotelDetail() {
               </div>
             ) : (
               rooms.map((room) => (
-                <Card key={room.id} className="hover:shadow-md transition-shadow">
+                <Card key={room.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                  {room.images?.[0] && (
+                    <div className="h-32 w-full">
+                      <img 
+                        src={room.images[0]} 
+                        alt={room.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -547,7 +558,16 @@ export default function HotelDetail() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {foodItems.map((item) => (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <Card key={item.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                    {item.image_url && (
+                      <div className="h-32 w-full">
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">{categoryEmojis[item.category]}</span>
