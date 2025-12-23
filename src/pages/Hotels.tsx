@@ -166,7 +166,7 @@ export default function Hotels() {
             <p className="text-muted-foreground">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-3 gap-4">
             {filteredHotels.map((hotel) => {
               const hotelDiscounts = discounts[hotel.id] || [];
               const minCoins = hotelDiscounts.length > 0 
