@@ -607,7 +607,7 @@ export default function HotelDetail() {
                 <p>No menu items available</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-3 gap-4">
                 {foodItems.map((item) => (
                   <Card key={item.id} className="hover:shadow-md transition-shadow overflow-hidden">
                     {item.image_url && (
