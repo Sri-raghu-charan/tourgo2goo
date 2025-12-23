@@ -39,6 +39,7 @@ interface HotelData {
   category: string;
   images: string[];
   is_verified: boolean;
+  base_coin_deduction: number;
 }
 
 interface Room {
@@ -166,14 +167,16 @@ export default function HotelDetail() {
       return;
     }
 
-    // Check if user has enough coins
-    const coinsNeeded = selectedDiscount?.coins_required || 0;
+    // Calculate total coins needed (base + discount)
+    const baseCoinDeduction = hotel.base_coin_deduction || 0;
+    const discountCoins = selectedDiscount?.coins_required || 0;
+    const totalCoinsNeeded = baseCoinDeduction + discountCoins;
     const userCoins = profile?.total_coins || 0;
     
-    if (selectedDiscount && userCoins < coinsNeeded) {
+    if (totalCoinsNeeded > 0 && userCoins < totalCoinsNeeded) {
       toast({
         title: "Not Enough Coins",
-        description: `You need ${coinsNeeded} coins for this discount. You have ${userCoins}.`,
+        description: `You need ${totalCoinsNeeded} coins (${baseCoinDeduction} base + ${discountCoins} for discount). You have ${userCoins}.`,
         variant: "destructive",
       });
       return;
@@ -196,30 +199,45 @@ export default function HotelDetail() {
           check_in: format(checkIn, 'yyyy-MM-dd'),
           check_out: format(checkOut, 'yyyy-MM-dd'),
           total_amount: totalAmount,
-          coins_used: coinsNeeded,
+          coins_used: totalCoinsNeeded,
           discount_applied: discountApplied,
           special_requests: specialRequests || null
         });
 
       if (bookingError) throw bookingError;
 
-      // Deduct coins if discount was used
-      if (selectedDiscount && coinsNeeded > 0) {
+      // Deduct coins (base + discount)
+      if (totalCoinsNeeded > 0) {
         const { error: coinsError } = await supabase
           .from('profiles')
-          .update({ total_coins: userCoins - coinsNeeded })
+          .update({ total_coins: userCoins - totalCoinsNeeded })
           .eq('user_id', user.id);
 
         if (coinsError) console.error('Error deducting coins:', coinsError);
 
-        await supabase
-          .from('coin_transactions')
-          .insert({
-            user_id: user.id,
-            amount: -coinsNeeded,
-            transaction_type: 'redemption',
-            description: `Redeemed for ${selectedDiscount.name} at ${hotel.name}`
-          });
+        // Record transaction for base coins
+        if (baseCoinDeduction > 0) {
+          await supabase
+            .from('coin_transactions')
+            .insert({
+              user_id: user.id,
+              amount: -baseCoinDeduction,
+              transaction_type: 'booking_fee',
+              description: `Base booking fee at ${hotel.name}`
+            });
+        }
+
+        // Record transaction for discount coins
+        if (selectedDiscount && discountCoins > 0) {
+          await supabase
+            .from('coin_transactions')
+            .insert({
+              user_id: user.id,
+              amount: -discountCoins,
+              transaction_type: 'redemption',
+              description: `Redeemed for ${selectedDiscount.name} at ${hotel.name}`
+            });
+        }
       }
 
       toast({
@@ -459,10 +477,28 @@ export default function HotelDetail() {
                               </div>
                             )}
                             
+                            {/* Base Coin Requirement */}
+                            {hotel.base_coin_deduction > 0 && (
+                              <div className="p-3 bg-accent/10 rounded-lg border border-accent/30">
+                                <div className="flex items-center justify-between">
+                                  <span className="flex items-center gap-2 text-sm font-medium">
+                                    <Coins className="w-4 h-4 text-accent-foreground" />
+                                    Booking Fee
+                                  </span>
+                                  <Badge variant="secondary" className="gap-1">
+                                    {hotel.base_coin_deduction} coins
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Required coins for booking at this hotel
+                                </p>
+                              </div>
+                            )}
+
                             {/* Discount Selection */}
                             {discounts.filter(d => d.target === 'room').length > 0 && (
                               <div className="space-y-2">
-                                <Label>Apply Coin Discount</Label>
+                                <Label>Apply Coin Discount (optional)</Label>
                                 <div className="space-y-2">
                                   {discounts.filter(d => d.target === 'room').map((discount) => (
                                     <Button
@@ -479,16 +515,19 @@ export default function HotelDetail() {
                                         {discount.name}
                                       </span>
                                       <span className="text-sm">
-                                        {discount.coins_required} coins = {getDiscountDisplay(discount)}
+                                        +{discount.coins_required} coins = {getDiscountDisplay(discount)}
                                       </span>
                                     </Button>
                                   ))}
                                 </div>
-                                {profile && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Your balance: <span className="font-semibold text-accent">{profile.total_coins} coins</span>
-                                  </p>
-                                )}
+                              </div>
+                            )}
+
+                            {/* Coin Balance */}
+                            {profile && (
+                              <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                                <span className="text-sm text-muted-foreground">Your balance:</span>
+                                <span className="font-semibold text-accent">{profile.total_coins} coins</span>
                               </div>
                             )}
                             
@@ -520,6 +559,18 @@ export default function HotelDetail() {
                                     <span>Total</span>
                                     <span className="text-primary">₹{calculateTotal()}</span>
                                   </div>
+                                  {/* Coins to be deducted */}
+                                  {(hotel.base_coin_deduction > 0 || selectedDiscount) && (
+                                    <div className="flex justify-between text-sm border-t pt-2 text-accent-foreground">
+                                      <span className="flex items-center gap-1">
+                                        <Coins className="w-3 h-3" />
+                                        Coins to deduct
+                                      </span>
+                                      <span className="font-medium">
+                                        {hotel.base_coin_deduction + (selectedDiscount?.coins_required || 0)} coins
+                                      </span>
+                                    </div>
+                                  )}
                                 </CardContent>
                               </Card>
                             )}

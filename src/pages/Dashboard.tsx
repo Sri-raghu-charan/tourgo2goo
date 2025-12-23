@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Hotel, 
@@ -22,6 +24,7 @@ import { RoomManager } from "@/components/dashboard/RoomManager";
 import { FoodManager } from "@/components/dashboard/FoodManager";
 import { DiscountManager } from "@/components/dashboard/DiscountManager";
 import { BookingsList } from "@/components/dashboard/BookingsList";
+import { CoinSettingsCard } from "@/components/dashboard/CoinSettingsCard";
 
 interface Hotel {
   id: string;
@@ -32,6 +35,7 @@ interface Hotel {
   images: string[];
   is_verified: boolean;
   is_active: boolean;
+  base_coin_deduction: number;
 }
 
 export default function Dashboard() {
@@ -222,6 +226,12 @@ export default function Dashboard() {
                     <Badge variant="outline" className="bg-card/80">
                       {hotel.category}
                     </Badge>
+                    {hotel.base_coin_deduction > 0 && (
+                      <Badge variant="secondary" className="bg-accent/80 gap-1">
+                        <Coins className="w-3 h-3" />
+                        {hotel.base_coin_deduction} coins/booking
+                      </Badge>
+                    )}
                   </div>
                   <h2 className="text-2xl font-display font-bold text-foreground">{hotel.name}</h2>
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -231,6 +241,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
+
+            {/* Coin Settings Card */}
+            <CoinSettingsCard hotel={hotel} onUpdate={fetchHotel} />
 
             {/* Management Tabs */}
             <Tabs defaultValue="rooms" className="w-full">

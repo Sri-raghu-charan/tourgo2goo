@@ -214,6 +214,7 @@ export type Database = {
       }
       hotels: {
         Row: {
+          base_coin_deduction: number
           category: Database["public"]["Enums"]["hotel_category"] | null
           created_at: string | null
           description: string | null
@@ -229,6 +230,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          base_coin_deduction?: number
           category?: Database["public"]["Enums"]["hotel_category"] | null
           created_at?: string | null
           description?: string | null
@@ -244,6 +246,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          base_coin_deduction?: number
           category?: Database["public"]["Enums"]["hotel_category"] | null
           created_at?: string | null
           description?: string | null
