@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useImageUpload } from "@/hooks/useImageUpload";
@@ -14,7 +17,7 @@ import { MyBookings } from "@/components/MyBookings";
 import { 
   User, MapPin, Trophy, Star, Flame, Settings, LogOut, LogIn,
   Camera, Award, Clock, Target, TrendingUp, Calendar, Coins, Hotel, Sparkles,
-  Utensils, Bed, Building, Loader2, CalendarCheck
+  Utensils, Bed, Building, Loader2, CalendarCheck, Phone, Save
 } from "lucide-react";
 
 interface HotelData {
@@ -58,10 +61,18 @@ const Profile = () => {
   const [hotels, setHotels] = useState<HotelData[]>([]);
   const [loadingHotels, setLoadingHotels] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (profile?.avatar_url) {
+    if (profile) {
       setAvatarUrl(profile.avatar_url);
+      setEditName(profile.full_name || "");
+      setEditPhone(profile.phone || "");
+      setEditLocation(profile.location || "");
     }
   }, [profile]);
 
@@ -114,6 +125,35 @@ const Profile = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editName,
+          phone: editPhone,
+          location: editLocation,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({ title: "Profile updated successfully!" });
+      setEditDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,10 +308,70 @@ const Profile = () => {
                       Dashboard
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Settings className="w-4 h-4" />
-                    Edit
-                  </Button>
+                  <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Settings className="w-4 h-4" />
+                        Edit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Edit Profile</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="name" className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Full Name
+                          </Label>
+                          <Input
+                            id="name"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Enter your name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone" className="flex items-center gap-2">
+                            <Phone className="w-4 h-4" />
+                            Phone Number
+                          </Label>
+                          <Input
+                            id="phone"
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
+                            placeholder="Enter your phone number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="location" className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Location
+                          </Label>
+                          <Input
+                            id="location"
+                            value={editLocation}
+                            onChange={(e) => setEditLocation(e.target.value)}
+                            placeholder="Enter your location"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveProfile} disabled={saving} className="gap-2">
+                          {saving ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Button variant="destructive" size="sm" className="gap-2" onClick={handleSignOut}>
                     <LogOut className="w-4 h-4" />
                     Logout
