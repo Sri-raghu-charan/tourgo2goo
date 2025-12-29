@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
-import { InteractiveMap } from "@/components/InteractiveMap";
+import  InteractiveMap  from "@/components/InteractiveMap";
 import { UserStats } from "@/components/UserStats";
 import { LocationCard } from "@/components/LocationCard";
 import { Leaderboard } from "@/components/Leaderboard";
