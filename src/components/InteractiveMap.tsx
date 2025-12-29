@@ -1,3 +1,5 @@
+//npm install leaflet react-leaflet run thuis command in terminal to inlcude live interacting map
+
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -23,3 +25,6 @@ const InteractiveMap = () => {
 };
 
 export default InteractiveMap;
+
+//after complition restart the server 
+
