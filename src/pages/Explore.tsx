@@ -1,5 +1,5 @@
 import { Navigation } from "@/components/Navigation";
-import { InteractiveMap } from "@/components/InteractiveMap";
+import  InteractiveMap from "@/components/InteractiveMap";
 import { LocationCard } from "@/components/LocationCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
